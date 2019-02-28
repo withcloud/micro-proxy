@@ -1,69 +1,68 @@
-# micro-proxy
+# 🛠️ micro-proxy
+Same as zeit/micro-proxy but support header, install as `now-micro-proxy`.
 
-[![Build Status](https://travis-ci.org/zeit/micro-proxy.svg?branch=master)](https://travis-ci.org/zeit/micro-proxy)
 
-With `micro-proxy`, you can create a proxy server for your microservices based on `now.sh` [path alias rules](https://zeit.co/docs/features/path-aliases).
+> original
+> https://github.com/withcloud/micro-proxy
+> forked from
+> https://github.com/zeit/micro-proxy/tree/51db13be5c66c12859ebb8f88fa249486966100f
+> see also
+> https://github.com/zeit/micro-proxy/pull/23
+> https://github.com/zeit/micro-proxy/pull/42
 
-This is specially well suited for development to mirror the production configuration of multiple microservices and backends.
 
-## Usage
+## Why?
 
-Firstly, install the package:
+當發佈 micro-proxy 到 NOW v2 時會有錯誤
+
+https://spectrum.chat/?t=10f07039-488d-4056-804f-1627d92cc25b
+
+
+這是解決辦法
+
+https://github.com/zeit/now-cli/issues/1462
+
+
+所以我需要能用於 micro-proxy 和控制 header 的方法，所以 forked `micro-proxy` 並按照 PR 加上 header 功能。
+
+
+## How to use
+
+
+```
+yarn add now-micro-proxy
+```
+
+index.js
 
 ```js
-npm i -g micro-proxy
-```
-
-Then add following rules to a filename called `rules.json`:
-
-```json
-{
-  "rules": [
-    {"pathname": "/blog", "method":["GET", "POST", "OPTIONS"], "dest": "http://localhost:5000"},
-    {"pathname": "/**", "dest": "http://localhost:4000"}
-  ]
-}
-```
-
-> Visit [path alias](https://zeit.co/docs/features/path-aliases) documentation to learn more about rules.
-
-Run the proxy server with:
-
-```
-micro-proxy -r rules.json -p 9000
-```
-
-Now you can access the proxy via: `http://localhost:9000`
-
-### Programmatic Usage
-
-You can run the proxy programmatically inside your codebase.
-For that, add `micro-proxy` to your project with:
-
-```
-npm install micro-proxy
-```
-
-Then create the proxy server like this:
-
-```js
-const createProxy = require('micro-proxy')
-const proxy = createProxy([
-  {"pathname": "/blog", "method":["GET", "POST", "OPTIONS"], "dest": "http://localhost:5000"},
-  {"pathname": "/**", "dest": "http://localhost:4000"}
-])
-
-proxy.listen(9000, (err) => {
+const createProxy = require('now-micro-proxy')
+const rules = require('../rules')
+const proxy = createProxy(rules)
+proxy.listen(3000, (err) => {
   if (err) {
     throw err
   }
-  console.log(`> Ready on http://localhost:9000`)
+  console.log(`> Ready on http://localhost:3000`)
 })
 ```
 
-### Production Usage
+rules.js
 
-You can use `micro-proxy` as a production deployment.
+```js
+const headers = {
+  'cf-connecting-ip': undefined,
+  'cf-ipcountry': undefined,
+  'cf-visitor': undefined,
+  'cf-ray': undefined
+}
+const env = process.env.VAVAGO_ENV === 'production' ? '' : '-development'
+module.exports = [
+  { 'pathname': '/api', 'dest': `https://api${env}.getvavago.com`, headers },
+  { 'pathname': '/api/**', 'dest': `https://api${env}.getvavago.com`, headers },
+  { 'pathname': '/admin', 'dest': `https://admin${env}.getvavago.com`, headers },
+  { 'pathname': '/admin/**', 'dest': `https://admin${env}.getvavago.com`, headers },
+  { 'dest': `https://site${env}.getvavago.com`, headers }
+]
+```
 
-But if you are using [ZEIT now](https://zeit.co/now), you can simply use path [alias rules](https://zeit.co/docs/features/path-aliases) instead.<br/>
-(It's a FREE service available for all ZEIT now deployments.)
