@@ -3,11 +3,17 @@ Same as zeit/micro-proxy but support header, install as `now-micro-proxy`.
 
 
 > original
+>
 > https://github.com/withcloud/micro-proxy
+> 
 > forked from
+>
 > https://github.com/zeit/micro-proxy/tree/51db13be5c66c12859ebb8f88fa249486966100f
+> 
 > see also
+>
 > https://github.com/zeit/micro-proxy/pull/23
+>
 > https://github.com/zeit/micro-proxy/pull/42
 
 
