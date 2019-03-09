@@ -1,5 +1,5 @@
 {
-  "name": "now-micro-proxy",
+  "name": "now-proxy-handle",
   "version": "1.1.1",
   "description": "Simplest proxy server for microservices",
   "bin": {
