@@ -1,6 +1,6 @@
 const { resolve, URL } = require('url')
 const fetch = require('node-fetch')
-const lintRules = require('./lint-rules')
+const lintRules = require('./lib/lint-rules')
 
 module.exports = (rules) => {
   const lintedRules = lintRules(rules).map(({pathname, pathnameRe, method, dest, headers}) => {
