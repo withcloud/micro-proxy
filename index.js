@@ -1,8 +1,6 @@
-const micro = require('micro')
-const { resolve, parse, URL } = require('url')
+const { resolve, URL } = require('url')
 const fetch = require('node-fetch')
-const lintRules = require('./lib/lint-rules')
-const WebSocket = require('ws')
+const lintRules = require('./lint-rules')
 
 module.exports = (rules) => {
   const lintedRules = lintRules(rules).map(({pathname, pathnameRe, method, dest, headers}) => {
@@ -20,104 +18,42 @@ module.exports = (rules) => {
     }
   })
 
-  const getDest = (req) => {
-    for (const { pathnameRegexp, methods, dest } of lintedRules) {
+  const getRoute = (req) => {
+    for (const { pathname, pathnameRegexp, methods, dest, headers } of lintedRules) {
       if (pathnameRegexp.test(req.url) && (!methods || methods[req.method.toLowerCase()])) {
-        return dest
+        return {
+          dest,
+          headers,
+          pathname,
+          pathnameRegexp
+        }
       }
     }
+    return {}
   }
 
-  const getHeaders = (req) => {
-    for (const { pathnameRegexp, methods, headers } of lintedRules) {
-      if (pathnameRegexp.test(req.url) && (!methods || methods[req.method.toLowerCase()])) {
-        return headers
-      }
-    }
-  }
-
-  const server = micro(async (req, res) => {
+  return async (req, res) => {
     try {
-      const dest = getDest(req)
-      const headers = getHeaders(req)
+      const route = getRoute(req)
 
-      if (!dest) {
+      if (!route.dest) {
         res.writeHead(404)
         res.end('404 - Not Found')
         return
       }
 
-      await proxyRequest(req, res, dest, headers)
+      await proxyRequest(req, res, route)
     } catch (err) {
       console.error(err.stack)
       res.end()
     }
-  })
-
-  const wss = new WebSocket.Server({ server })
-  wss.on('connection', (ws, req) => {
-    const dest = getDest(req)
-
-    if (!dest) {
-      ws.close()
-      return
-    }
-
-    proxyWs(ws, req, dest)
-  })
-
-  return server
+  }
 }
 
-function proxyWs (ws, req, dest) {
-  const destUrlObject = parse(dest)
-  const newUrl = `ws://${destUrlObject.host}${req.url}`
-
-  const destWs = new WebSocket(newUrl)
-
-  // util functions
-  const incomingHandler = (message) => {
-    destWs.send(message)
-  }
-
-  const outgoingHandler = (message) => {
-    ws.send(message)
-  }
-
-  const onError = (err) => {
-    console.error(`Error on proxying url: ${newUrl}`)
-    console.error(err.stack)
-  }
-
-  const removeListeners = () => {
-    ws.removeListener('message', incomingHandler)
-    destWs.removeListener('message', outgoingHandler)
-  }
-
-  // events handling
-  destWs.on('open', () => {
-    ws.addListener('message', incomingHandler)
-    destWs.addListener('message', outgoingHandler)
-  })
-
-  ws.on('close', () => {
-    destWs.close()
-    removeListeners()
-  })
-
-  destWs.on('close', () => {
-    ws.close()
-    removeListeners()
-  })
-
-  ws.on('error', onError)
-  destWs.on('error', onError)
-}
-
-async function proxyRequest (req, res, dest, reqHeaders) {
+async function proxyRequest (req, res, { dest, reqHeaders, pathname }) {
   const tempUrl = resolve(dest, req.url)
   const cleanUrl = new URL(tempUrl)
-  const newUrl = resolve(dest, `${cleanUrl.pathname}${cleanUrl.search}`)
+  const newUrl = resolve(dest, `${pathname ? cleanUrl.pathname.replace(/^\/[^/]+/, '') : cleanUrl.pathname}${cleanUrl.search}`)
   const url = new URL(dest)
   const proxyRes = await fetch(newUrl, {
     method: req.method,
