@@ -3,7 +3,7 @@ const fetch = require('node-fetch')
 const lintRules = require('./lib/lint-rules')
 
 module.exports = (rules) => {
-  const lintedRules = lintRules(rules).map(({pathname, pathnameRe, method, dest, headers}) => {
+  const lintedRules = lintRules(rules).map(({ pathname, pathnameRe, method, dest, headers, replace }) => {
     const methods = method ? method.reduce((final, c) => {
       final[c.toLowerCase()] = true
       return final
@@ -14,18 +14,20 @@ module.exports = (rules) => {
       pathnameRegexp: new RegExp(pathnameRe || pathname || '.*'),
       dest,
       methods,
-      headers
+      headers,
+      replace
     }
   })
 
   const getRoute = (req) => {
-    for (const { pathname, pathnameRegexp, methods, dest, headers } of lintedRules) {
+    for (const { pathname, pathnameRegexp, methods, dest, headers, replace } of lintedRules) {
       if (pathnameRegexp.test(req.url) && (!methods || methods[req.method.toLowerCase()])) {
         return {
           dest,
           headers,
           pathname,
-          pathnameRegexp
+          pathnameRegexp,
+          replace
         }
       }
     }
@@ -50,10 +52,15 @@ module.exports = (rules) => {
   }
 }
 
-async function proxyRequest (req, res, { dest, reqHeaders, pathname }) {
+async function proxyRequest (req, res, { dest, reqHeaders, replace }) {
   const tempUrl = resolve(dest, req.url)
   const cleanUrl = new URL(tempUrl)
-  const newUrl = resolve(dest, `${pathname ? cleanUrl.pathname.replace(/^\/[^/]+/, '') : cleanUrl.pathname}${cleanUrl.search}`)
+  let newPathname = cleanUrl.pathname
+  if (replace) {
+    const re = new RegExp(replace.searchValue)
+    newPathname = newPathname.replace(re, replace.newValue)
+  }
+  const newUrl = resolve(dest, `${newPathname}${cleanUrl.search}`)
   const url = new URL(dest)
   const proxyRes = await fetch(newUrl, {
     method: req.method,
