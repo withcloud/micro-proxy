@@ -65,7 +65,7 @@ async function proxyRequest (req, res, { dest, reqHeaders, replace }) {
   const proxyRes = await fetch(newUrl, {
     method: req.method,
     headers: Object.assign({ 'x-forwarded-host': req.headers.host }, req.headers, reqHeaders, { host: url.host }),
-    body: req.body || {},
+    body: req.body,
     compress: false,
     redirect: 'manual'
   })
