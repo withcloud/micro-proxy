@@ -52,7 +52,7 @@ module.exports = (rules) => {
   }
 }
 
-async function proxyRequest (req, res, { dest, reqHeaders, replace }) {
+async function proxyRequest (req, res, { dest, headers, replace }) {
   const tempUrl = resolve(dest, req.url)
   const cleanUrl = new URL(tempUrl)
   let newPathname = cleanUrl.pathname
@@ -64,7 +64,7 @@ async function proxyRequest (req, res, { dest, reqHeaders, replace }) {
   const url = new URL(dest)
   const proxyRes = await fetch(newUrl, {
     method: req.method,
-    headers: Object.assign({ 'x-forwarded-host': req.headers.host }, req.headers, reqHeaders, { host: url.host }),
+    headers: Object.assign({ 'x-forwarded-host': req.headers.host }, req.headers, headers, { host: url.host }),
     body: req.body,
     compress: false,
     redirect: 'manual'
@@ -74,9 +74,9 @@ async function proxyRequest (req, res, { dest, reqHeaders, replace }) {
   res.statusCode = proxyRes.status
 
   // Forward headers
-  const headers = proxyRes.headers.raw()
-  for (const key of Object.keys(headers)) {
-    res.setHeader(key, headers[key])
+  const newHeaders = proxyRes.headers.raw()
+  for (const key of Object.keys(newHeaders)) {
+    res.setHeader(key, newHeaders[key])
   }
 
   // Stream the proxy response
